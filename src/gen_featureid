@@ -1,0 +1,409 @@
+#! /usr/bin/python3
+
+import logging
+import json
+import re
+import argparse
+from pprint import pprint
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--summary', action='store_true')
+parser.add_argument('file', nargs=1)
+
+args= parser.parse_args()
+
+json_data= open(args.file[0]).read()
+ops= json.loads(json_data)
+
+Leaf= {}
+Index= list()
+Index.append([0,0])
+Register= {
+	'eax': 0,
+	'ebx': 1,
+	'ecx': 2,
+	'edx': 3
+}
+Features= {}
+Features[0]= [ list(), list(), list(), list() ]
+FeatureNames= {}
+FeatureLeafIndex= {}
+FeatureOrder= []
+
+if args.summary:
+	for feature in ops.keys():
+		data= ops[feature]
+		print("{:s} | CPUID.{:02x}H:{:s}.{:s}[bit {:d}]".format(feature,
+			data['leaf'], 
+			data['register'].upper(), 
+			feature, 
+			data['bit'])
+		)
+	exit(0)
+
+# First, set the feature order
+
+for feature in ops.keys():
+	data= ops[feature]
+
+	if len(FeatureOrder) == 0:
+		FeatureOrder.append(feature)
+		continue
+
+	if 'needreg' in data:
+		reqreg= data['needreg']
+	else:
+		reqreg= None
+
+	if 'requires' in data:
+		reqfeat= data['requires']
+	else:
+		reqfeat= None
+
+	if reqfeat is None and reqreg is None:
+		if 'hasreg' in data:
+			FeatureOrder.insert(0, feature)
+		else:
+			added= False
+			for i, name in enumerate(FeatureOrder):
+				if 'hasreg' not in ops[name]:
+					FeatureOrder.insert(i, feature)
+					added= True
+					break
+
+			if not added:
+				FeatureOrder.append(feature)
+	else:
+		added= False
+
+		if reqfeat is None:
+			seenfeat= True
+		else:
+			seenfeat= False
+		if reqreg is None:
+			seenreg= True
+		else:
+			seenreg= False
+
+		for i, name in enumerate(FeatureOrder):
+			if seenreg and seenfeat:
+				FeatureOrder.insert(i, feature)
+				added= True
+				break
+
+			if reqfeat is not None:
+				if reqfeat in ops[name]:
+					seenfeat= True
+			if reqreg is not None:
+				if 'hasreg' in ops[name] and ops[name]['hasreg'] == reqreg:
+					seenreg= True
+
+		if not added:
+			FeatureOrder.append(feature)
+	
+
+# Print the start of the file
+
+print("""#include "config.h"
+#include <string.h>
+#include <stdio.h>
+
+#ifdef SGX_WITH_SGXSDK
+# include <sgx_trts.h>
+# include <sgx_trts_exception.h>
+#else
+# include <openenclave/enclave.h>
+# include <openenclave/bits/exception.h>
+#endif
+
+#include "sgx_tcpu_features.h"
+
+#ifdef SGX_WITH_SGXSDK
+
+# define CPU_RIP info->cpu_context.rip
+# define EXCEPTION_INFO_T sgx_exception_info_t
+# define EXCEPTION_HANDLER_T int
+# define ADD_HANDLER(x,y) sgx_register_exception_handler(x, y)!=NULL
+# define RM_HANDLER(x) sgx_unregister_exception_handler(x)
+# define SANITY_CHECK if (info->exception_type!=SGX_EXCEPTION_HARDWARE &&\\
+	info->exception_vector!=SGX_EXCEPTION_VECTOR_UD)\\
+	return EXCEPTION_CONTINUE_SEARCH
+
+#else
+
+# define EXCEPTION_CONTINUE_SEARCH 0
+# define EXCEPTION_CONTINUE_EXECUTION 0xFFFFFFFF
+# define CPU_RIP info->context->rip
+# define EXCEPTION_HANDLER_T uint64_t
+# define EXCEPTION_INFO_T oe_exception_record_t
+# define ADD_HANDLER(x,y) oe_add_vectored_exception_handler(x, y)==OE_OK
+# define RM_HANDLER(x) oe_remove_vectored_exception_handler(x)
+# define SANITY_CHECK if (info->flags!=OE_EXCEPTION_FLAGS_HARDWARE &&\\
+	info->code!=OE_EXCEPTION_ILLEGAL_INSTRUCTION)\\
+	return EXCEPTION_CONTINUE_SEARCH
+
+#endif
+
+""")
+
+for feature in ops.keys():
+	data= ops[feature]
+	print("#define FEATUREBIT_{:s} (1<<{:d})".format(feature, data['bit']))
+
+print("""
+#define REG_EAX 0
+#define REG_EBX 1
+#define REG_ECX 2
+#define REG_EDX 3
+
+#define ASM(x) __asm__ __volatile__(x)
+
+void clear_feature_bit(int leaf, int subleaf, uint8_t reg, 
+	uint8_t bit);
+uint32_t mask_index(int leaf, int subleaf);
+
+""")
+
+
+# Import the JSON and build various mappings between
+# CPUID leaf,subleaf pairs and features.
+
+i= 1
+for feature in FeatureOrder:
+	data= ops[feature]
+	leaf= data['leaf']
+	subleaf= data['subleaf']
+	reg= Register[data['register']]
+	# Remove spaces
+	data['bytecode']= data['bytecode'].replace(' ','');
+	code= data['bytecode']
+	instruction= data['instruction']
+
+	name= feature.lower()
+
+	# Declarations for each feature's handler
+	print("EXCEPTION_HANDLER_T handler_{:s}(EXCEPTION_INFO_T *info);".format(name))
+	if leaf not in Leaf:
+		Leaf[leaf]= {}
+
+	if subleaf not in Leaf[leaf]:
+		Leaf[leaf][subleaf]= i
+		idx= i
+		i+= 1
+		Index.append([leaf, subleaf])
+	else:
+		idx= Leaf[leaf][subleaf]
+
+	if idx not in Features:
+		Features[idx]= [ list(), list(), list(), list() ]
+		FeatureLeafIndex[idx]= list()
+
+	if 'bit' in data:
+		Features[idx][reg].append("FEATUREBIT_{:s}".format(feature))
+
+	if 'bits' in data:
+		for bit in data['bits']:
+			Features[idx][reg].append("1<<FEATUREBIT_{:s}".format(feature))
+
+	FeatureNames[idx]= feature
+	FeatureLeafIndex[idx].append(feature)
+
+# Needed registers
+print("\n")
+for feature in ops.keys():
+	data= ops[feature]
+	if 'hasreg' in data:
+		print("static int have_reg_{:s}= 1;".format(data['hasreg']))
+
+# Feature bit masks (what we check for)
+
+
+print("\nstatic uint32_t feature_masks[][4]= {")
+for idx, val in enumerate(Index):
+	str="|\n\t\t\t"
+	arr= Features[idx]
+	for i in range(0, 4, 1):
+		if len(arr[i]) == 0:
+			arr[i].append("0x0")
+
+	if idx > 0:
+		print(",")
+	print("\t{ ")
+	print("\t\t{:s},".format(str.join(arr[0])))
+	print("\t\t{:s},".format(str.join(arr[1])))
+	print("\t\t{:s},".format(str.join(arr[2])))
+	print("\t\t{:s}".format(str.join(arr[3])))
+	print("\t}", end='')
+
+print("\n};")
+
+# Feature bits (what we've discovered). Start by setting everything
+# then clear bits for features that aren't present.
+
+print("static uint32_t feature_bits[][4]= {")
+for idx, val in enumerate(Index):
+	arr= Features[idx]
+	if idx > 0:
+		print(",")
+	print("\t{ ")
+	print("\t\t{:s},".format(str.join(arr[0])))
+	print("\t\t{:s},".format(str.join(arr[1])))
+	print("\t\t{:s},".format(str.join(arr[2])))
+	print("\t\t{:s}".format(str.join(arr[3])))
+	print("\t}", end='')
+
+print("""
+};
+
+static int initialized_masks= 0;
+
+int sgx_cpu_features_mask(int mask[4], int leaf, int subleaf)
+{
+	uint32_t idx= mask_index(leaf, subleaf);
+
+	if ( idx == 0 ) return SGX_TCPUID_UNSUPPORTEDLEAF;
+
+	memcpy(mask, feature_masks[idx], 4*sizeof(uint32_t));
+
+	return SGX_TCPUID_OK;
+}
+
+int sgx_cpu_features(int info[4], int leaf, int subleaf)
+{
+	uint32_t idx= mask_index(leaf, subleaf);
+
+	if ( idx == 0 ) return SGX_TCPUID_UNSUPPORTEDLEAF;
+
+	if ( ! initialized_masks ) {""")
+
+for feature in FeatureOrder:
+	data= ops[feature]
+	code= data['bytecode']
+	comment= data['instruction']
+	reg= data['register'].upper()
+	bit= data['bit']
+	leaf= data['leaf']
+	subleaf= data['subleaf']
+
+	if 'needreg' in data:
+		prereq= "have_reg_{:s} && ".format(data['needreg'])
+	else:
+		prereq= ""
+
+	name= feature.lower()
+	scode= re.sub(r'(..)(?=.)', r'\1, 0x', code)
+
+	print("\n\t\t// {:s}".format(feature))
+	print("\t\tif ( {:s}ADD_HANDLER(1, handler_{:s}) ) {{".
+		format(prereq, name))
+	#--------
+	#print('\t\t\tfprintf(stderr, "{:s}\\n");'.format(feature))
+	#--------
+	if 'setup' in data:
+		ssetup= re.sub(r'(..)(?=.)', r'\1, 0x', data['setup'])
+		print("\t\t\tASM(\".byte 0x{:s}\");".format(ssetup))
+	if 'pre' in data:
+		print("\t\t\tASM(\"{:s}\");".format(data['pre']))
+	print("\t\t\t// {:s}".format(comment))
+	print("\t\t\tASM(\".byte 0x{:s}\");".format(scode))
+	if 'cleanup' in data:
+		print("\t\t\tASM(\"{:s}\");".format(data['cleanup']))
+	if 'post' in data:
+		print("\t\t\tASM(\"{:s}\");".format(data['post']))
+	print("\t\t\tRM_HANDLER(handler_{:s});".
+		format(name))
+	print("\t\t} else {");
+	#--------
+	#print('\t\t\tfprintf(stderr, "Skipping {:s}\\n");'.format(feature))
+	#--------
+	print("\t\t\tclear_feature_bit({:d}, {:d}, REG_{:s}, {:d});".
+		format(leaf, subleaf, reg, bit))
+	print("\t\t}");
+
+print("""\t\tinitialized_masks= 1;
+	}
+
+	memcpy(info, feature_bits[idx], 4*sizeof(uint32_t));
+
+	return SGX_TCPUID_OK;
+}
+""")
+
+
+print("""
+void clear_feature_bit(int leaf, int subleaf, uint8_t reg, uint8_t bit)
+{
+	uint32_t idx;
+
+	idx= mask_index(leaf, subleaf);
+	feature_bits[idx][reg]&= ~(1<<bit);
+}
+
+uint32_t mask_index(int leaf, int subleaf)
+{
+	uint32_t idx= 0;
+""")
+
+firstleaf= True
+for leaf in Leaf:
+	if firstleaf:
+		print("	if ( leaf == {:d} ) {{".format(leaf))
+	else:
+		print("	}} else if ( leaf == {:d} ) {{".format(leaf))
+	firstleaf= False
+
+	firstsubleaf= True
+	for subleaf in Leaf[leaf]:
+		if firstsubleaf:
+			print("\t\tif ( subleaf == {:d} ) idx= {:d};".format(subleaf,
+				Leaf[leaf][subleaf]))
+		else:
+			print("\t\telse if ( subleaf == {:d} ) idx= {:d};".format(subleaf,
+				Leaf[leaf][subleaf]))
+
+print("""	}
+	return idx;
+}
+""")
+
+for feature in ops.keys():
+	data= ops[feature]
+	leaf= data['leaf']
+	subleaf= data['subleaf']
+	reg= data['register'].upper()
+	code= data['bytecode']
+	scode= re.sub(r'(..)(?=.)', r'\1, 0x', code)
+	bits= list()
+	lop= int(len(code)/2);
+
+	if 'bit' in data:
+		bits.append(data['bit'])
+	if 'bits' in data:
+		bits.extend(data['bits'])
+
+	name= feature.lower()
+
+#	if ( ! memcmp((void *) info->CPU_CONTEXT.rip, op, sizeof(op)) ) {
+#		info->CPU_CONTEXT.rip+= sizeof(op);""")
+	print("EXCEPTION_HANDLER_T handler_{:s}(EXCEPTION_INFO_T *info)".format(name))
+	print("{")
+	print("\tunsigned char op[]= {{ 0x{:s} }};". format(scode))
+	print("	SANITY_CHECK;\n");
+	#--------
+	#print('\tfprintf(stderr, "Exception: {:s}\\n");'.format(feature))
+	#--------
+	print("\n\tif ( ! memcmp((void *) CPU_RIP, op, {:d}) ) {{".format(lop));
+	print("\t\tCPU_RIP+= {:d};".format(lop, lop))
+
+	if 'hasreg' in data:
+		print("\t\thave_reg_{:s}= 0;".format(data['hasreg']))
+	for bit in bits:
+		print("\t\tclear_feature_bit({:d}, {:d}, REG_{:s}, {:d});".format(
+			leaf, subleaf, reg, bit))
+
+	print("""		return EXCEPTION_CONTINUE_EXECUTION;
+	}
+
+	return EXCEPTION_CONTINUE_SEARCH;
+}
+""")

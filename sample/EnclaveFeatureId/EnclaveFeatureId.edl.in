@@ -1,0 +1,16 @@
+enclave {
+	@EDL_IMPORTS@
+
+	trusted {
+		public int enclave_cpu_features_mask([out] int info[4],
+			int leaf, int subleaf);
+
+		public int enclave_sgx_cpuidex_features_merge([in, out] int info[4],
+			int leaf, int subleaf);
+	};
+
+	untrusted {
+		void oe_oc_cpuid([out] int info[4], int leaf, int subleaf);
+	};
+};
+

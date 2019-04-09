@@ -1,0 +1,66 @@
+## -------------------------------- Variables set via configure
+## These have to be outside of a conditional or automake will kick and scream.
+##
+## Intel SGX SDK
+
+SGXSDK=@SGXSDK@
+SGXSDK_BINDIR=@SGXSDK_BINDIR@
+SGXSDK_INCDIR=@SGXSDK_INCDIR@
+SGXSDK_LIBDIR=@SGXSDK_LIBDIR@
+
+## These libraries exist in both hardware and simulation (_sim) form,
+## so they need to be listed as Makefile variables.
+
+SGX_URTS_LIB=@SGX_URTS_LIB@
+SGX_UAE_SERVICE_LIB=@SGX_UAE_SERVICE_LIB@
+
+## OpenEnclave
+
+OE=@OE@
+OE_BINDIR=@OE_BINDIR@
+OE_INCDIR=@OE_INCDIR@
+OE_LIBDIR=@OE_LIBDIR@
+
+OE_APP_LIBS=@OE_APP_LDADD@
+
+## Intel SGX SSL
+
+SGXSSL=@SGXSSL@
+SGXSSL_BINDIR=@SGXSSL_BINDIR@
+SGXSSL_INCDIR=@SGXSSL_INCDIR@
+SGXSSL_LIBDIR=@SGXSSL_LIBDIR@
+
+AM_CPPFLAGS=
+AM_LDFLAGS=
+
+##                               -------- Intel SGXSDK
+if SGX_WITH_SGXSDK
+
+SGX_EDGER8R=$(SGXSDK_BINDIR)/sgx_edger8r
+
+AM_CPPFLAGS+= -I$(SGXSDK_INCDIR)
+AM_LDFLAGS+= -L$(SGXSDK_LIBDIR)
+
+## Rule to generate untrusted proxy functions from an EDL file.
+
+%_u.h %_u.c: %.edl
+	$(SGX_EDGER8R) --search-path $(SGXSDK_INCDIR) $(SGX_EDGER8R_FLAGS) --untrusted $<
+
+endif
+##                                -------- end Intel SGXSDK
+
+##                                -------- OpenEnclave
+if SGX_WITH_OPENENCLAVE
+
+OE_EDGER8R=$(OE_BINDIR)/oeedger8r
+
+AM_CPPFLAGS+= @OE_APP_CPPFLAGS@
+AM_LDFLAGS+= @OE_APP_LDFLAGS@
+
+## Rule to generate untrusted proxy functions from an EDL file.
+%_u.h %_u.c: %.edl
+	$(OE_EDGER8R) --search-path $(OE_INCDIR) $(OE_EDGER8R_FLAGS) --untrusted $<
+
+##                                -------- end OpenEnclave
+endif
+

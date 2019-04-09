@@ -1,0 +1,254 @@
+{
+	"RDRAND":{
+		"leaf": 1,
+		"subleaf": 0,
+		"register": "ecx",
+		"bit": 30,
+		"pre": "push %rdx",
+		"instruction": "rdrand %rdx",
+		"post": "pop %rdx",
+		"bytecode": "48 0f c7 f2"
+	},
+	"RDSEED": {
+		"leaf": 7,
+		"subleaf": 0,
+		"register": "ebx",
+		"bit": 18,
+		"pre": "push %rdx",
+		"instruction": "rdseed %rdx",
+		"post": "pop %rdx",
+		"bytecode": "48 0f c7 fa"
+	},
+	"MMX": {
+		"leaf": 1,
+		"subleaf": 0,
+		"register": "edx",
+		"bit": 23,
+		"hasreg": "mm",
+		"instruction": "movq %mm0,%mm0",
+		"bytecode": "0f 6f c0"
+	},
+	"SSE": {
+		"leaf": 1,
+		"subleaf": 0,
+		"register": "edx",
+		"bit": 25,
+		"hasreg": "xmm",
+		"instruction": "movss %xmm0,%xmm0",
+		"bytecode": "f3 0f 10 c0"
+	},
+	"SSE2": {
+		"leaf": 1,
+		"subleaf": 0,
+		"register": "edx",
+		"needreg": "xmm",
+		"bit": 26,
+		"pre": "sub $0x10,%rsp",
+		"instruction": "movdqu %xmm0,(%rsp)",
+		"post": "add $0x10,%rsp",
+		"bytecode": "f3 0f 7f 04 24"
+	},
+	"SSE3": {
+		"leaf": 1,
+		"subleaf": 0,
+		"register": "ecx",
+		"requires": "SSE2",
+		"needreg": "xmm",
+		"bit": 0,
+		"pre": "sub $0x10,%rsp; movdqu %xmm0,(%rsp)",
+		"instruction": "movsldup %xmm1,%xmm0",
+		"post": "movdqu (%rsp),%xmm0;add $0x10,%rsp",
+		"bytecode": "f3 0f 12 c1"
+	},
+	"SSSE3": {
+		"leaf": 1,
+		"subleaf": 0,
+		"register": "ecx",
+		"requires": "SSE2",
+		"needreg": "xmm",
+		"bit": 9,
+		"pre": "sub $0x10,%rsp; movdqu %xmm0,(%rsp)",
+		"instruction": "pabsd %xmm1,%xmm0",
+		"post": "movdqu (%rsp),%xmm0;add $0x10,%rsp",
+		"bytecode": "66 0f 38 1e c1"
+	},
+	"SSE4_1": {
+		"leaf": 1,
+		"subleaf": 0,
+		"register": "ecx",
+		"requires": "SSE2",
+		"needreg": "xmm",
+		"bit": 19,
+		"pre": "sub $0x10,%rsp; movdqu %xmm0,(%rsp)",
+		"instruction": "pmuldq %xmm1,%xmm0",
+		"post": "movdqu (%rsp),%xmm0;add $0x10,%rsp",
+		"bytecode": "66 0f 38 28 c1"
+	},
+	"SSE4_2": {
+		"leaf": 1,
+		"subleaf": 0,
+		"register": "ecx",
+		"requires": "SSE2",
+		"needreg": "xmm",
+		"bit": 20,
+		"pre": "sub $0x10,%rsp; movdqu %xmm0,(%rsp)",
+		"instruction": "pcmpgtq %xmm1,%xmm0",
+		"post": "movdqu (%rsp),%xmm0;add $0x10,%rsp",
+		"bytecode": "66 0f 38 37 c1"
+	},
+	"AVX": {
+		"leaf": 1,
+		"subleaf": 0,
+		"register": "ecx",
+		"bit": 28,
+		"hasreg": "ymm",
+		"instruction": "vmovdqu %ymm0,%ymm0",
+		"bytecode": "c5 fe 6f c0"
+	},
+	"AVX2": {
+		"requires": "AVX",
+		"needreg": "ymm",
+		"leaf": 7,
+		"subleaf": 0,
+		"register": "ebx",
+		"bit": 5,
+		"pre": "sub $0x20,%rsp; vmovdqu %ymm0,(%rsp)",
+		"instruction": "vpaddq %ymm2,%ymm1,%ymm0",
+		"post": "vmovdqu (%rsp),%ymm0;add $0x20,%rsp",
+		"bytecode": "c5 f5 d4 c2"
+	},
+	"ADX": {
+		"leaf": 7,
+		"subleaf": 0,
+		"register": "ebx",
+		"bit": 19,
+		"pre": "push %rdx",
+		"instruction": "adox %rcx,%rdx",
+		"post": "pop %rdx",
+		"bytecode": "f3 48 0f 38 f6 d1"
+	},
+	"BMI1": {
+		"leaf": 7,
+		"subleaf": 0,
+		"register": "ebx",
+		"bit": 3,
+		"pre": "push %rdx",
+		"instruction": "andn %rbx,%rcx,%rdx",
+		"post": "pop %rdx",
+		"bytecode": "c4 e2 f0 f2 d3"
+	},
+	"BMI2": {
+		"leaf": 7,
+		"subleaf": 0,
+		"register": "ebx",
+		"bit": 8,
+		"pre": "push %rdx",
+		"instruction": "rorx $0x1,%rcx,%rdx",
+		"post": "pop %rdx",
+		"bytecode": "c4 e3 fb f0 d1 01"
+	},
+	"AESNI": {
+		"leaf": 1,
+		"subleaf": 0,
+		"register": "ecx",
+		"bit": 25,
+		"requires": "SSE2",
+		"needreg": "xmm",
+		"pre": "sub $0x10,%rsp; movdqu %xmm0,(%rsp)",
+		"instruction": "aesenc %xmm1,%xmm0",
+		"post": "movdqu (%rsp),%xmm0;add $0x10,%rsp",
+		"bytecode": "66 0f 38 dc c1"
+	},
+	"SHA": {
+		"leaf": 7,
+		"subleaf": 0,
+		"register": "ebx",
+		"bit": 29,
+		"requires": "SSE2",
+		"needreg": "xmm",
+		"pre": "sub $0x10,%rsp; movdqu %xmm0,(%rsp)",
+		"instruction": "sha1msg1 %xmm1,%xmm0",
+		"post": "movdqu (%rsp),%xmm0;add $0x10,%rsp",
+		"bytecode": "0f 38 c9 c1"
+	},
+	"PCLMULQDQ": {
+		"requires": "SSE2",
+		"leaf": 1,
+		"subleaf": 0,
+		"register": "ecx",
+		"bit": 1,
+		"needreg": "xmm",
+		"pre": "sub $0x10,%rsp; movdqu %xmm0,(%rsp)",
+		"instruction": "pclmullqlqdq %xmm1,%xmm0",
+		"post": "movdqu (%rsp),%xmm0;add $0x10,%rsp",
+		"bytecode": "66 0f 3a 44 c1 00"
+	},
+	"POPCNT": {
+		"leaf": 1,
+		"subleaf": 0,
+		"register": "ecx",
+		"bit": 23,
+		"pre": "push %rdx",
+		"instruction": "popcnt %rcx,%rdx",
+		"post": "pop %rdx",
+		"bytecode": "f3 48 0f b8 d1"
+	},
+	"F16C": {
+		"requires": "SSE",
+		"needreg": "xmm",
+		"leaf": 1,
+		"subleaf": 0,
+		"register": "ecx",
+		"bit": 29,
+		"pre": "sub $0x10,%rsp; movdqu %xmm0,(%rsp)",
+		"instruction": "vcvtph2ps %xmm1,%xmm0",
+		"post": "movdqu (%rsp),%xmm0;add $0x10,%rsp",
+		"bytecode": "c4 e2 79 13 c1"
+	},
+	"FMA": {
+		"requires": "AVX",
+		"leaf": 1,
+		"subleaf": 0,
+		"register": "ecx",
+		"bit": 12,
+		"needreg": "ymm",
+		"pre": "sub $0x20,%rsp; vmovdqu %ymm0,(%rsp)",
+		"instruction": "vxorpd %ymm2,%ymm1,%ymm0",
+		"cleanup": "vmovdqu (%rsp),%ymm0",
+		"post": "add $0x20,%rsp",
+		"bytecode": "c5 f5 57 c2"
+	},
+	"AVX512F": {
+		"leaf": 7,
+		"subleaf": 0,
+		"register": "ebx",
+		"hasreg": "zmm",
+		"bit": 16,
+		"pre": "push %rdx",
+		"instruction": "kmovw %k1,%edx",
+		"post": "pop %rdx",
+		"bytecode": "c5 f8 93 d1"
+	},
+	"AVX512VL": {
+		"needreg": "zmm",
+		"leaf": 7,
+		"subleaf": 0,
+		"register": "ebx",
+		"bit": 31,
+		"pre": "push %rdx; kmovw %k1,%edx",
+		"instruction": "vpcmpeqq %ymm1,%ymm0,%k1",
+		"post": "kmovw %edx,%k1;pop %rdx",
+		"bytecode": "62 f2 fd 28 29 c9"
+	},
+	"AVX512DQ": {
+		"needreg": "zmm",
+		"requires": "AVX512F",
+		"leaf": 7,
+		"subleaf": 0,
+		"register": "ebx",
+		"bit": 17,
+		"instruction": "vpmovq2m %zmm1,%k1",
+		"bytecode": "62 f2 fe 48 39 c9"
+	}
+}
+
