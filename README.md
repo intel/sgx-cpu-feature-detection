@@ -13,10 +13,6 @@ Normally, an application should call the CPUID instruction to detect CPU feature
 
 Enclaves that depend on CPUID results for code path decisions could be manipulated by malicious software into choosing either inefficient algorithms or executing code paths with instructions that aren't supported by the CPU (leading to a #UD exception, which is effectively a denial of service attack). This library allows enclaves to detect CPU features without exiting the trusted runtime environment of the enclave. It supports both the Intel SGX SDK and the Microsoft* Open Enclave* trusted runtimes.
 
-This library allows enclaves to detect CPU features without exiting the
-trusted runtime environment of the enclave. It supports both the Intel SGX SDK
-and the Microsoft* Open Enclave* trusted runtimes.
-
 **Note:** This is not a general replacement for the sgx_cpuid() or sgx_cpuidex() calls but rather a supplement. An enclave may still need to call sgx_cpuid(), but those results can be merged with the results obtained from this library to ensure that the presence or absence of supported feature sets is accurately reported.
 
 ## Supported features
