@@ -11,7 +11,7 @@ Normally, an application should call the CPUID instruction to detect CPU feature
 
 > As the CPUID instruction is executed by an OCALL, the results should not be trusted. Code should verify the results and perform a threat evaluation to determine the impact on trusted code if the results were spoofed.
 
-Enclaves that depend on CPUID results for code path decisions could be manipulated by malicious software into choosing either inefficient algorithms or executing code paths with instructions that aren't supported by the CPU (leading to a #UD exception, which is effectively a denial of service attack). This library allows enclaves to detect CPU features without exiting the trusted runtime environment of the enclave. It supports both the Intel SGX SDK and the Microsoft* Open Enclave* trusted runtimes.
+Enclaves that depend on CPUID results for code path decisions could be manipulated by malicious software into choosing either inefficient algorithms or executing code paths with instructions that aren't supported by the CPU (leading to a #UD exception, which is effectively a denial of service attack). This library allows enclaves to detect certain CPU features without exiting the trusted runtime environment of the enclave. It supports both the Intel SGX SDK and the Microsoft* Open Enclave* trusted runtimes.
 
 **Note:** This is not a general replacement for the sgx_cpuid() or sgx_cpuidex() calls but rather a supplement. An enclave may still need to call sgx_cpuid(), but those results can be merged with the results obtained from this library to ensure that the presence or absence of supported feature sets is accurately reported.
 
@@ -49,7 +49,7 @@ To build this library you'll need one of the following software development
 kits (SDKs):
 
    * [Intel SGX SDK](https://github.com/intel/linux-sgx)
-   * [Microsoft Open Enclave SDK v0.4.x](https://github.com/Microsoft/openenclave)
+   * [Microsoft Open Enclave SDK v0.6.x](https://github.com/Microsoft/openenclave)
 
 You'll also need a C compiler such as gcc* that is supported by the chosen
 SDK.
