@@ -18,7 +18,11 @@
 
 #include <immintrin.h>
 
-#define ENCLAVE_NAME "EnclaveFeatureId.signed.so"
+#ifdef SGX_WITH_SGXSDK
+# define ENCLAVE_NAME "EnclaveFeatureId.signed.so"
+#else
+# define ENCLAVE_NAME "EnclaveFeatureId.so.signed"
+#endif
 
 const char *bitfield[16]= {
 	"0000", "0001", "0010", "0011",
