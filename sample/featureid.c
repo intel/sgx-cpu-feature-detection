@@ -208,7 +208,7 @@ int launch_enclave(enclave_meta_t *e)
 # endif
 
 	status= oe_create_enclave(ENCLAVE_NAME, e->type, flags, e->config,
-		e->config_size, &e->enclave);
+		e->config_size, NULL, 0, &e->enclave);
 	if ( status != OE_OK ) {
 		fprintf(stderr, "oe_create_enclave: %s: %s\n", ENCLAVE_NAME,
 			oe_result_str(status));

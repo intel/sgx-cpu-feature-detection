@@ -6,7 +6,6 @@ include $(top_srcdir)/build-aux/sgx_app.am
 
 SUBDIRS = EnclaveFeatureId
 
-
 ## Needed to make our pattern rule work
 
 EnclaveFeatureId.edl: EnclaveFeatureId/EnclaveFeatureId.edl
@@ -19,7 +18,7 @@ AM_CPPFLAGS += -fno-builtin-memset
 ## any edger8r generated files here.
 
 CLEANFILES = EnclaveFeatureId_u.c EnclaveFeatureId_u.h EnclaveFeatureId.edl \
-	EnclaveFeatureId_args.h EnclaveFeatureId.signed.so
+	EnclaveFeatureId_args.h $(SIGNED_ENCLAVE)
 
 ## The build target
 
@@ -27,7 +26,13 @@ bin_PROGRAMS = featureid
 
 ## Copy the signed enclave to the current directory
 
+if SGX_WITH_SGXSDK
+SIGNED_ENCLAVE=EnclaveFeatureId.signed.so
 EnclaveFeatureId.signed.so: EnclaveFeatureId/EnclaveFeatureId.signed.so
+else
+SIGNED_ENCLAVE=EnclaveFeatureId.so.signed
+EnclaveFeatureId.so.signed: EnclaveFeatureId/EnclaveFeatureId.so.signed
+endif
 	ln -s $?
 
 ## You can't use $(wildcard ...) with automake so all source files 
@@ -36,7 +41,7 @@ EnclaveFeatureId.signed.so: EnclaveFeatureId/EnclaveFeatureId.signed.so
 featureid_SOURCES = featureid.c
 nodist_featureid_SOURCES = EnclaveFeatureId_u.c EnclaveFeatureId_u.h
 BUILT_SOURCES = EnclaveFeatureId_u.c EnclaveFeatureId_u.h
-EXTRA_featureid_DEPENDENCIES = EnclaveFeatureId.signed.so
+EXTRA_featureid_DEPENDENCIES = $(SIGNED_ENCLAVE)
 
 ## Library flags. At minimum, an Intel SGX SDK application will need:
 ##

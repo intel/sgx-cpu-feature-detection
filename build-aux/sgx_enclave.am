@@ -94,7 +94,7 @@ AM_CXXFLAGS+=@OE_ENCLAVE_CXXFLAGS@
 AM_LDFLAGS+=@OE_ENCLAVE_LDFLAGS@
 
 $(ENCLAVE).signed$(EXEEXT): $(ENCLAVE)$(EXEEXT) $(ENCLAVE_CONFIG) $(ENCLAVE_KEY)
-	$(OE_SIGN) $(ENCLAVE)$(EXEEXT) $(ENCLAVE_CONFIG) $(ENCLAVE_KEY)
+	$(OE_SIGN) sign --enclave-image $(ENCLAVE)$(EXEEXT) --config-file $(ENCLAVE_CONFIG) --key-file $(ENCLAVE_KEY)
 
 ## Rule to make trusted proxy functions from an EDL file.
 
